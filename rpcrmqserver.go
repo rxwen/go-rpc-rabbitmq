@@ -2,6 +2,7 @@ package rpcrmq
 
 import (
 	"log"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -75,6 +76,7 @@ func startRPC(endpoint, method string, svc *RPCService) {
 			amqp.Publishing{
 				ContentType:   "application/octet-stream",
 				CorrelationId: d.ReplyTo,
+				Timestamp:     time.Now(),
 				Body:          rsp,
 			})
 		if err != nil {

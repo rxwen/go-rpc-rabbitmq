@@ -69,6 +69,7 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 	pub := amqp.Publishing{
 		ContentType:   "application/octet-stream",
 		CorrelationId: q.Name,
+		Timestamp:     time.Now(),
 		ReplyTo:       q.Name,
 		Body:          request,
 	}
