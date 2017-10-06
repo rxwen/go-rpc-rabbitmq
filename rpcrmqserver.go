@@ -16,6 +16,22 @@ func RegisterRPC(rpcName string, svc *RPCService) {
 	gRegisteredRPC[rpcName] = svc
 }
 
+func ensureServerQueue(ch *amqp.Channel, method string) (amqp.Queue, error) {
+	q, err := ch.QueueDeclare(
+		method, // name
+		false,  // durable
+		true,   // autoDelete
+		false,  // exclusive
+		false,  // noWait
+		nil,    // args
+	)
+	if err != nil {
+		log.Print("failed to declare request queue to make sure it exists", err)
+		return q, err
+	}
+	return q, err
+}
+
 func startRPC(endpoint, method string, svc *RPCService) {
 	con, err := amqp.Dial(endpoint)
 	if err != nil {
@@ -31,14 +47,7 @@ func startRPC(endpoint, method string, svc *RPCService) {
 	}
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		method, // name
-		false,  // durable
-		true,   // autoDelete
-		false,  // exclusive
-		false,  // noWait
-		nil,    // args
-	)
+	q, err := ensureServerQueue(ch, method)
 	if err != nil {
 		log.Fatal("failed to declare queue ", method, err)
 	}

@@ -39,7 +39,12 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 	////args = amqp.Table{"x-message-ttl": int32(gRequestTimeoutSecond * 1000)}
 	//log.Print("timeoutS is ", args["x-message-ttl"])
 	//}
-	q, err := ch.QueueDeclare(
+	q, err := ensureServerQueue(ch, method)
+	if err != nil {
+		log.Print("failed to declare request queue to make sure it exists", err)
+		return nil, err
+	}
+	q, err = ch.QueueDeclare(
 		method+"."+id.String(), //name
 		false, // durable
 		true,  // autoDelete
@@ -83,7 +88,7 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 		log.Print("failed to publish request ", q.Name)
 		return nil, err
 	}
-	log.Print("request published to ", q.Name)
+	log.Print("request published to ", method)
 
 	//closeErrors := make(chan *amqp.Error)
 	//c.NotifyClose(closeErrors)
