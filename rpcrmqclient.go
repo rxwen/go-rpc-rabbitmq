@@ -29,7 +29,7 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 
 	//args := make(map[string]interface{})
 	args := amqp.Table{}
-	// TODO: the x-message-ttl doesn't work
+	// TODO: the x-message-ttl doesn't work, https://www.rabbitmq.com/ttl.html#per-message-ttl-caveats
 	//if timeoutS > 0 {
 	//args["x-message-ttl"] = int32(timeoutS * 1000)
 	////args = amqp.Table{"x-message-ttl": int32(timeoutS * 1000)}
