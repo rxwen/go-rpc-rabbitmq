@@ -1,0 +1,7 @@
+syntax="proto3";
+
+package rpcrmq;
+
+message ErrorMessage {
+    string Message = 1;
+}

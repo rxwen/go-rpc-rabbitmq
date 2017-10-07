@@ -4,12 +4,17 @@ import (
 	"log"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/streadway/amqp"
 )
 
 type RPCService struct {
 	Callback func([]byte) ([]byte, error)
 }
+
+const MessageTypeRequest = "Request"
+const MessageTypeResponse = "Response"
+const MessageTypeError = "Error"
 
 var gRegisteredRPC map[string]*RPCService = make(map[string]*RPCService)
 
@@ -65,8 +70,14 @@ func startRPC(endpoint, method string, svc *RPCService) {
 	for d := range msgs {
 		log.Print("got request ", d.ReplyTo)
 		rsp, err := svc.Callback(d.Body)
+		msgType := MessageTypeResponse
 		if err != nil {
 			log.Print("RPCService callback error: ", err)
+			msgType = MessageTypeError
+			var errMsg = ErrorMessage{
+				Message: err.Error(),
+			}
+			rsp, err = proto.Marshal(&errMsg)
 		}
 		err = ch.Publish(
 			"",
@@ -77,6 +88,7 @@ func startRPC(endpoint, method string, svc *RPCService) {
 				ContentType:   "application/octet-stream",
 				CorrelationId: d.ReplyTo,
 				Timestamp:     time.Now(),
+				Type:          msgType,
 				Body:          rsp,
 			})
 		if err != nil {

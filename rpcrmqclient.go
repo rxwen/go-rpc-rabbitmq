@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/streadway/amqp"
 )
@@ -71,6 +72,7 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 		CorrelationId: q.Name,
 		Timestamp:     time.Now(),
 		ReplyTo:       q.Name,
+		Type:          MessageTypeRequest,
 		Body:          request,
 	}
 	if timeoutS > 0 {
@@ -108,7 +110,16 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 			if d.CorrelationId != q.Name {
 				return nil, errors.New("invalid correction id on response queue, " + d.CorrelationId + " vs " + q.Name)
 			}
-			return d.Body, nil
+			switch d.Type {
+			case MessageTypeResponse:
+				return d.Body, nil
+			case MessageTypeError:
+				var errMsg = ErrorMessage{}
+				err = proto.Unmarshal(d.Body, &errMsg)
+				return nil, errors.New(errMsg.Message)
+			default:
+				return nil, errors.New("unknown response message type")
+			}
 		case <-time.After(to):
 			return nil, errors.New("wait response timeout for " + q.Name)
 		}
