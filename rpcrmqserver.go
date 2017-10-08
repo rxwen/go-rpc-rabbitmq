@@ -1,6 +1,7 @@
 package rpcrmq
 
 import (
+	"errors"
 	"log"
 	"time"
 
@@ -18,8 +19,12 @@ const MessageTypeError = "Error"
 
 var gRegisteredRPC map[string]*RPCService = make(map[string]*RPCService)
 
-func RegisterRPC(rpcName string, svc *RPCService) {
+func RegisterRPC(rpcName string, svc *RPCService) error {
+	if _, exist := gRegisteredRPC[rpcName]; exist {
+		return errors.New(rpcName + " service has already been registered")
+	}
 	gRegisteredRPC[rpcName] = svc
+	return nil
 }
 
 func ensureServerQueue(ch *amqp.Channel, method string) (amqp.Queue, error) {
