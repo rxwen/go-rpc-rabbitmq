@@ -11,11 +11,10 @@ import (
 	"github.com/streadway/amqp"
 )
 
-var gRequestTimeoutSecond, gReryCount int
+var gRequestTimeoutSecond int
 
-func Init(endpoint string, requestTimeoutS, retryCount int) {
+func Init(requestTimeoutS int) {
 	gRequestTimeoutSecond = requestTimeoutS
-	gReryCount = retryCount
 }
 
 func RequestWithTimeout(con *amqp.Connection, method string, request []byte, timeoutS int) ([]byte, error) {
