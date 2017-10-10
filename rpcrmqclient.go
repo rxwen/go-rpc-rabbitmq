@@ -13,7 +13,7 @@ import (
 
 var gRequestTimeoutSecond int
 
-func Init(requestTimeoutS int) {
+func SetTimeoutGlobal(requestTimeoutS int) {
 	gRequestTimeoutSecond = requestTimeoutS
 }
 
