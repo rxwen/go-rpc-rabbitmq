@@ -106,8 +106,7 @@ func rpcInner(endpoint, method string, svc *RPCService) {
 		}
 	case e := <-closeErrors:
 		{
-			log.Println(e)
-			log.Print("connection closed, restart server")
+			log.Println("connection closed, restart server, error:", e)
 			return
 		}
 	}
