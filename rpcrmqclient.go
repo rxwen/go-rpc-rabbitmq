@@ -105,7 +105,6 @@ func RequestWithTimeout(con *amqp.Connection, method string, request []byte, tim
 	for {
 		select {
 		case d := <-msgs:
-			log.Print("got response ", d)
 			if d.CorrelationId != q.Name {
 				return nil, errors.New("invalid correction id on response queue, " + d.CorrelationId + " vs " + q.Name)
 			}

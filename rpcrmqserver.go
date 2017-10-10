@@ -43,13 +43,16 @@ func ensureServerQueue(ch *amqp.Channel, method string) (amqp.Queue, error) {
 	return q, err
 }
 
-func startRPC(endpoint, method string, svc *RPCService) {
+func rpcInner(endpoint, method string, svc *RPCService) {
 	con, err := amqp.Dial(endpoint)
 	if err != nil {
 		log.Print("failed to connect ", err)
 		return
 	}
 	defer con.Close()
+
+	closeErrors := make(chan *amqp.Error)
+	con.NotifyClose(closeErrors)
 
 	ch, err := con.Channel()
 	if err != nil {
@@ -72,33 +75,47 @@ func startRPC(endpoint, method string, svc *RPCService) {
 		false,  // noWait
 		nil,    // args
 	)
-	for d := range msgs {
-		log.Print("got request ", d.ReplyTo)
-		rsp, err := svc.Callback(d.Body)
-		msgType := MessageTypeResponse
-		if err != nil {
-			log.Print("RPCService callback error: ", err)
-			msgType = MessageTypeError
-			var errMsg = ErrorMessage{
-				Message: err.Error(),
+	select {
+	case d := <-msgs:
+		{
+			rsp, err := svc.Callback(d.Body)
+			msgType := MessageTypeResponse
+			if err != nil {
+				log.Print("RPCService callback error: ", err)
+				msgType = MessageTypeError
+				var errMsg = ErrorMessage{
+					Message: err.Error(),
+				}
+				rsp, err = proto.Marshal(&errMsg)
 			}
-			rsp, err = proto.Marshal(&errMsg)
+			err = ch.Publish(
+				"",
+				d.ReplyTo,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType:   "application/octet-stream",
+					CorrelationId: d.ReplyTo,
+					Timestamp:     time.Now(),
+					Type:          msgType,
+					Body:          rsp,
+				})
+			if err != nil {
+				log.Print("failed to publish response for ", d.ReplyTo)
+			}
 		}
-		err = ch.Publish(
-			"",
-			d.ReplyTo,
-			false,
-			false,
-			amqp.Publishing{
-				ContentType:   "application/octet-stream",
-				CorrelationId: d.ReplyTo,
-				Timestamp:     time.Now(),
-				Type:          msgType,
-				Body:          rsp,
-			})
-		if err != nil {
-			log.Print("failed to publish response for ", d.ReplyTo)
+	case e := <-closeErrors:
+		{
+			log.Println(e)
+			log.Print("connection closed, restart server")
+			return
 		}
+	}
+}
+
+func startRPC(endpoint, method string, svc *RPCService) {
+	for {
+		rpcInner(endpoint, method, svc)
 	}
 }
 
