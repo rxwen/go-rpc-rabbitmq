@@ -81,7 +81,6 @@ func rpcInner(endpoint, method string, svc *RPCService) {
 		select {
 		case d := <-msgs:
 			go func() {
-				log.Print(d)
 				rsp, err := svc.Callback(d.Body)
 				msgType := MessageTypeResponse
 				if err != nil {
