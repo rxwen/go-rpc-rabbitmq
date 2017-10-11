@@ -91,14 +91,14 @@ func rpcInner(endpoint, method string, svc *RPCService) {
 						Message: err.Error(),
 					}
 					rsp, err = proto.Marshal(&errMsg)
+				}
 
-					responseChan <- amqp.Publishing{
-						ContentType:   "application/octet-stream",
-						CorrelationId: d.ReplyTo,
-						Timestamp:     time.Now(),
-						Type:          msgType,
-						Body:          rsp,
-					}
+				responseChan <- amqp.Publishing{
+					ContentType:   "application/octet-stream",
+					CorrelationId: d.ReplyTo,
+					Timestamp:     time.Now(),
+					Type:          msgType,
+					Body:          rsp,
 				}
 			}()
 		case pub := <-responseChan:
