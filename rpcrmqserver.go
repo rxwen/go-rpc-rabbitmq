@@ -110,7 +110,8 @@ func rpcInner(endpoint, method string, svc *RPCService) {
 					pub,
 				)
 				if err != nil {
-					log.Print("failed to publish response for ", pub.CorrelationId)
+					log.Print("failed to publish response for ",
+						pub.CorrelationId, " error:", err)
 				}
 			}
 		case e := <-closeErrors:
