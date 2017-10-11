@@ -61,6 +61,8 @@ func rpcInner(endpoint, method string, svc *RPCService) {
 	}
 	defer ch.Close()
 
+	responseChan := make(chan amqp.Publishing, 100)
+
 	q, err := ensureServerQueue(ch, method)
 	if err != nil {
 		log.Fatal("failed to declare queue ", method, err)
@@ -75,39 +77,48 @@ func rpcInner(endpoint, method string, svc *RPCService) {
 		false,  // noWait
 		nil,    // args
 	)
-	select {
-	case d := <-msgs:
-		{
-			rsp, err := svc.Callback(d.Body)
-			msgType := MessageTypeResponse
-			if err != nil {
-				log.Print("RPCService callback error: ", err)
-				msgType = MessageTypeError
-				var errMsg = ErrorMessage{
-					Message: err.Error(),
+	for {
+		select {
+		case d := <-msgs:
+			go func() {
+				log.Print(d)
+				rsp, err := svc.Callback(d.Body)
+				msgType := MessageTypeResponse
+				if err != nil {
+					log.Print("RPCService callback error: ", err)
+					msgType = MessageTypeError
+					var errMsg = ErrorMessage{
+						Message: err.Error(),
+					}
+					rsp, err = proto.Marshal(&errMsg)
+
+					responseChan <- amqp.Publishing{
+						ContentType:   "application/octet-stream",
+						CorrelationId: d.ReplyTo,
+						Timestamp:     time.Now(),
+						Type:          msgType,
+						Body:          rsp,
+					}
 				}
-				rsp, err = proto.Marshal(&errMsg)
+			}()
+		case pub := <-responseChan:
+			{
+				err = ch.Publish(
+					"",
+					pub.CorrelationId,
+					false,
+					false,
+					pub,
+				)
+				if err != nil {
+					log.Print("failed to publish response for ", pub.CorrelationId)
+				}
 			}
-			err = ch.Publish(
-				"",
-				d.ReplyTo,
-				false,
-				false,
-				amqp.Publishing{
-					ContentType:   "application/octet-stream",
-					CorrelationId: d.ReplyTo,
-					Timestamp:     time.Now(),
-					Type:          msgType,
-					Body:          rsp,
-				})
-			if err != nil {
-				log.Print("failed to publish response for ", d.ReplyTo)
+		case e := <-closeErrors:
+			{
+				log.Println("connection closed, restart server, error:", e)
+				return
 			}
-		}
-	case e := <-closeErrors:
-		{
-			log.Println("connection closed, restart server, error:", e)
-			return
 		}
 	}
 }
